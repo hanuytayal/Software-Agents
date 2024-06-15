@@ -12,13 +12,23 @@ class Tasks:
                                     A comprehensive list of clear and executable software development tasks that can be given to a software developer to write software code ."""),
                             agent=agent
                     )
-    # def write_answer_for_tasks(self, agent, task):
-    #                 return Task(
-    #                         description=dedent(f"""\
-    #                                 Write a detailed answer to the following question:
-    #                                 {task.description}"""),
-    #                         expected_output=dedent("""\
-    #                                 A well-structured report that effectively summarizes the company's key aspects and provides actionable insights on leveraging these in a job posting."""),
-    #                         agent=agent
-    #                 )
-    #
+    def write_answer_for_tasks(self, agent, task):
+                    return Task(
+                            description=dedent(f"""\
+                                    Write a detailed answer to the following question:
+                                    {task.description}"""),
+                            expected_output=dedent("""\
+                                    A well-structured report that effectively summarizes the company's key aspects and provides actionable insights on leveraging these in a job posting."""),
+                            agent=agent
+                    )
+    #Create Tests cases and verify the output
+    def test_cases(self, agent, task):
+                    return Task(
+                            description=dedent(f"""\
+                                    Write test cases for the following question:
+                                    {task.description}"""),
+                            expected_output=dedent("""\
+                                    A well-structured report that effectively summarizes the company's key aspects and provides actionable insights on leveraging these in a job posting."""),
+                            agent=agent
+                    )
+    

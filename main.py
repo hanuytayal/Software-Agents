@@ -1,4 +1,3 @@
-#Launch
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -7,31 +6,58 @@ from crewai import Crew
 from tasks import Tasks
 from agents import Agents
 
-
 tasks = Tasks()
 agents = Agents()
 
-#Create a Crew object
-#Grab Question from input
-question = input("Enter the question: ")
+# Create a Crew object
+# Grab Question from input
+question = """Question: Given an input string s and a pattern p, implement regular expression matching with support for '.' and '*' where:
+'.' Matches any single character.
+'*' Matches zero or more of the preceding element.
+The matching should cover the entire input string (not partial)."""
 
-#Grab Example from input
-example = input("Enter the example: ")
+# Grab Example from input
+example = """Example 1:
+Input: s = "aa", p = "a"
+Output: false
+Explanation: "a" does not match the entire string "aa".
+Example 2:
+Input: s = "aa", p = "a*"
+Output: true
+Explanation: '*' means zero or more of the preceding element, 'a'. Therefore, by repeating 'a' once, it becomes "aa".
+Example 3:
+Input: s = "ab", p = ".*"
+Output: true
+Explanation: ".*" means "zero or more (*) of any character (.)"."""
 
-#Grab Constrains from input
-constrains = input("Enter the constrains: ")
+# Grab Constraints from input
+constraints = """Constraints:
+1 <= s.length <= 20
+1 <= p.length <= 20
+s contains only lowercase English letters.
+p contains only lowercase English letters, '.', and '*'.
+It is guaranteed for each appearance of the character '*', there will be a previous valid character to match."""
 
-#Grab answers to compare results  from input
-answers = input("Enter the answers: ")
+# Create Agents
+developer = agents.developer()
+tester = agents.tester()
 
-#Create Agents
+# Assign tasks to agents
+break_down_task = tasks.break_down_task(developer, question, example, constraints)
+write_answer_for_tasks = tasks.write_answer_for_tasks(developer, break_down_task)
+test_cases = tasks.test_cases(tester, write_answer_for_tasks)
 
+# Initialize the Crew with agents and tasks
+crew = Crew(
+    agents=[developer, tester],
+    tasks=[break_down_task,
+           write_answer_for_tasks,
+           test_cases]
+)
 
-#Assign tasks to agents
+# Start the crew and run the tasks
+# Kick off the process
+result = crew.kickoff()
 
-
-#Run the agents with sequential execution
-
-#Start the agents
-
-#Print the results
+# Print the result
+print(result)
