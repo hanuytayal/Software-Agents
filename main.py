@@ -1,10 +1,14 @@
+# main.py
+import logging
 from dotenv import load_dotenv
 load_dotenv()
 
 from crewai import Crew
-
 from tasks import Tasks
 from agents import Agents
+
+# Initialize logging
+logging.basicConfig(level=logging.DEBUG)
 
 tasks = Tasks()
 agents = Agents()
@@ -43,9 +47,16 @@ developer = agents.developer()
 tester = agents.tester()
 
 # Assign tasks to agents
+logging.debug("Assigning tasks to developer")
 break_down_task = tasks.break_down_task(developer, question, example, constraints)
+logging.debug("Developer task: Break down the problem")
+
 write_answer_for_tasks = tasks.write_answer_for_tasks(developer, break_down_task)
+logging.debug("Developer task: Write answer for tasks")
+
+logging.debug("Assigning tasks to tester")
 test_cases = tasks.test_cases(tester, write_answer_for_tasks)
+logging.debug("Tester task: Create test cases")
 
 # Initialize the Crew with agents and tasks
 crew = Crew(
@@ -56,8 +67,9 @@ crew = Crew(
 )
 
 # Start the crew and run the tasks
-# Kick off the process
+logging.debug("Starting the crew")
 result = crew.kickoff()
 
 # Print the result
+logging.debug("Result from the crew")
 print(result)
