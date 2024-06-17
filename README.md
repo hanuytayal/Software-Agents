@@ -1,1 +1,2 @@
 # Software-Agents
+We built a simple software team with 3 agents - a software manager that breaksdown complex problems into executable tasks, a software engineer who executes the tasks, and a code reviewer who reviews the code (based on its tests). This is a fully automated system built on top of CrewAI (a multi agent framework). We built this as part of the AI Tinkerers hackthon on 6/15 in Seattle. 
