@@ -1,37 +1,43 @@
 # agents.py
 """
 Defines and configures CrewAI agents for software development tasks,
-using a local LLM instance (via LM Studio's OpenAI-compatible endpoint).
+using OpenAI's GPT models.
 """
 
 import logging
+import os
+from textwrap import dedent
 from crewai import Agent
-# Import ChatOpenAI from langchain_openai to wrap the local LLM endpoint
 from langchain_openai import ChatOpenAI
 
 # Get a logger instance for this module
 logger = logging.getLogger(__name__)
 
-# --- Local LLM Configuration ---
-# Configure the LLM wrapper to connect to your local LM Studio instance
-# Ensure LM Studio is running and serving the model on http://localhost:1234
+# --- OpenAI Configuration ---
 try:
-    local_llm = ChatOpenAI(
-        base_url="http://localhost:1234/v1",
-        api_key="lm-studio", # Use the placeholder key for LM Studio
-        model="lmstudio-community/Meta-Llama-3-8B-Instruct-GGUF", # Specify the model being served
-        temperature=0.7
+    # Log environment variables
+    logger.debug(f"OPENAI_MODEL: {os.getenv('OPENAI_MODEL')}")
+    logger.debug(f"OPENAI_TEMPERATURE: {os.getenv('OPENAI_TEMPERATURE')}")
+
+    # Configure OpenAI LLM
+    openai_llm = ChatOpenAI(
+        model=os.getenv("OPENAI_MODEL", "gpt-4-turbo-preview"),
+        temperature=float(os.getenv("OPENAI_TEMPERATURE", "0.7")),
+        api_key=os.getenv("OPENAI_API_KEY")
     )
-    logger.info("Connected to local LLM via LangChain wrapper.")
+    logger.info("Connected to OpenAI LLM via LangChain wrapper.")
 except Exception as e:
-    logger.error(f"Failed to initialize LangChain LLM wrapper: {e}")
+    logger.error(f"Failed to initialize OpenAI LLM wrapper: {str(e)}")
+    logger.error(f"Error type: {type(e)}")
+    import traceback
+    logger.error(f"Traceback: {traceback.format_exc()}")
     # Handle error appropriately - maybe exit or use a fallback
-    local_llm = None # Set to None if connection fails
+    openai_llm = None # Set to None if connection fails
 
 class Agents:
     """
     A factory class for creating pre-configured CrewAI agents
-    using the defined local LLM.
+    using OpenAI's GPT models.
     """
     def developer(self) -> Agent:
         """
@@ -41,10 +47,10 @@ class Agents:
             A CrewAI Agent object representing the developer.
 
         Raises:
-            ValueError: If the local LLM failed to initialize.
+            ValueError: If the OpenAI LLM failed to initialize.
         """
-        if local_llm is None:
-            raise ValueError("Local LLM is not available. Cannot create agent.")
+        if openai_llm is None:
+            raise ValueError("OpenAI LLM is not available. Cannot create agent.")
 
         logger.debug("Creating Developer agent")
         return Agent(
@@ -56,7 +62,7 @@ class Agents:
                 well-commented code following best practices."""),
             allow_delegation=False, # Developer likely works independently on coding tasks
             verbose=True,
-            llm=local_llm # Use the configured local LLM
+            llm=openai_llm # Use the configured OpenAI LLM
         )
 
     def tester(self) -> Agent:
@@ -68,10 +74,10 @@ class Agents:
             A CrewAI Agent object representing the tester.
 
         Raises:
-            ValueError: If the local LLM failed to initialize.
+            ValueError: If the OpenAI LLM failed to initialize.
         """
-        if local_llm is None:
-            raise ValueError("Local LLM is not available. Cannot create agent.")
+        if openai_llm is None:
+            raise ValueError("OpenAI LLM is not available. Cannot create agent.")
 
         logger.debug("Creating Tester agent")
         return Agent(
@@ -84,7 +90,7 @@ class Agents:
                 expected outcomes."""),
             allow_delegation=False, # Tester likely works independently
             verbose=True,
-            llm=local_llm # Use the configured local LLM
+            llm=openai_llm # Use the configured OpenAI LLM
         )
 
 # Helper function (optional) to make importing easier

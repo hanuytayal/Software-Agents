@@ -73,18 +73,18 @@ try:
     logging.debug("Task created: break_down_task")
 
     # Task 2: Developer writes the solution based on the breakdown
-    # This task likely depends on the output of break_down_task
+    # This task depends on the output of break_down_task
     write_answer_for_tasks = tasks_manager.write_answer_for_tasks(
         agent=developer,
-        context=break_down_task # Pass the previous task as context
+        context=[break_down_task] # Pass as a list
     )
     logging.debug("Task created: write_answer_for_tasks")
 
     # Task 3: Tester creates test cases based on the developer's answer
-    # This task likely depends on the output of write_answer_for_tasks
+    # This task depends on the output of write_answer_for_tasks
     test_cases = tasks_manager.test_cases(
         agent=tester,
-        context=write_answer_for_tasks # Pass the previous task as context
+        context=[write_answer_for_tasks] # Pass as a list
     )
     logging.debug("Task created: test_cases")
 
@@ -104,7 +104,7 @@ crew = Crew(
         write_answer_for_tasks,
         test_cases
         ],
-    verbose=2 # Verbose level 2 provides detailed logs of agent actions and tool usage
+    verbose=True  # Changed from 2 to True for proper boolean value
 )
 
 # Start the crew's task execution
