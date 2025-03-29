@@ -1,4 +1,17 @@
+# Environment variables
 .env
-jobposting-api
-db
-__pycache__
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Local database files (if applicable, adjust pattern as needed)
+*.sqlite3
+db.sqlite3
+development.db
+
+# Other common ignores (OS files, IDE files, etc.)
+.DS_Store
+*.env.*
+*.log
+# ... add others as needed

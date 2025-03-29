@@ -1,47 +1,112 @@
 # tasks.py
+"""
+Defines tasks for CrewAI agents related to analyzing a LeetCode problem,
+generating a solution, and creating test cases.
+"""
+
 import logging
 from textwrap import dedent
-from crewai import Task
+from crewai import Task, Agent
+from typing import List # Import List for type hinting context
 
-# Initialize logging
-logging.basicConfig(level=logging.DEBUG)
+# Get a logger instance for this module
+logger = logging.getLogger(__name__)
 
 class Tasks:
-    def break_down_task(self, agent, question, example, constraints):
-        logging.debug(f"Creating task to break down the problem: {question}")
+    """
+    A container class for methods that generate specific CrewAI Task objects
+    for solving coding problems.
+    """
+    def break_down_task(self, agent: Agent, question: str, example: str, constraints: str) -> Task:
+        """
+        Creates a task for an agent to analyze and break down a given LeetCode problem
+        into actionable development steps.
+
+        Args:
+            agent: The CrewAI agent assigned to this task.
+            question (str): The main problem description.
+            example (str): Examples illustrating the problem.
+            constraints (str): Constraints on the input/output.
+
+        Returns:
+            A CrewAI Task object for breaking down the problem.
+        """
+        logger.debug(f"Creating task 'break_down_task' for agent {agent.role}")
         return Task(
             description=dedent(f"""\
-                Analyze the provided LeetCode problem "{question}". Focus on deeply understanding the examples provided here "{example}". Also, carefully review the constraints here "{constraints}". Use this information to breakdown the problem into tasks which will be then used to write software code. Compile a list of these tasks.
+                Analyze the provided LeetCode problem:
+                Question: "{question}"
+                Examples: "{example}"
+                Constraints: "{constraints}"
+
+                Deeply understand the requirements, examples, and constraints.
+                Break down the problem into a clear, sequential list of
+                software development tasks required to create a working solution.
             """),
             expected_output=dedent("""\
-                A comprehensive list of clear and executable software development tasks that can be given to a software developer to write software code.
+                A comprehensive list of clear and executable software development tasks
+                that can be directly used by a developer to write the code solution.
+                The list should be ordered logically for implementation.
             """),
             agent=agent
         )
 
-    def write_answer_for_tasks(self, agent, task):
-        logging.debug(f"Creating task to write answer: {task.description}")
+    def write_answer_for_tasks(self, agent: Agent, context: List[Task]) -> Task:
+        """
+        Creates a task for an agent to write the code solution based on
+        the previously defined development tasks.
+
+        Args:
+            agent: The CrewAI agent assigned to this task.
+            context (List[Task]): A list of prerequisite tasks, expected to include
+                                   the output of 'break_down_task'.
+
+        Returns:
+            A CrewAI Task object for writing the code solution.
+        """
+        logger.debug(f"Creating task 'write_answer_for_tasks' for agent {agent.role}")
         return Task(
             description=dedent(f"""\
-                Write a detailed answer to the following question:
-                {task.description}
+                Based on the provided breakdown of software development tasks,
+                write the actual software code that solves the original LeetCode problem.
+                Ensure the code is well-commented, follows best practices, and correctly
+                implements the logic required by the problem description and examples.
             """),
+            # Corrected expected_output to align with writing code
             expected_output=dedent("""\
-                A well-structured report that effectively summarizes the company's key aspects and provides actionable insights on leveraging these in a job posting.
+                A complete, correct, and well-documented code solution (e.g., in Python)
+                that solves the specified LeetCode problem, adhering to the logic
+                derived from the problem breakdown. The code should be ready for testing.
             """),
-            agent=agent
+            agent=agent,
+            context=context # Pass the context for dependency management
         )
 
-    # Create test cases and verify the output
-    def test_cases(self, agent, task):
-        logging.debug(f"Creating task to write test cases: {task.description}")
+    def test_cases(self, agent: Agent, context: List[Task]) -> Task:
+        """
+        Creates a task for an agent to generate test cases for the developed code solution.
+
+        Args:
+            agent: The CrewAI agent assigned to this task.
+            context (List[Task]): A list of prerequisite tasks, expected to include
+                                   the output of 'write_answer_for_tasks'.
+
+        Returns:
+            A CrewAI Task object for generating test cases.
+        """
+        logger.debug(f"Creating task 'test_cases' for agent {agent.role}")
         return Task(
             description=dedent(f"""\
-                Write test cases for the following question:
-                {task.description}
+                Based on the original LeetCode problem description, examples, constraints,
+                and the provided code solution, create a comprehensive set of test cases.
+                Include edge cases, base cases, and cases derived from the examples
+                and constraints.
             """),
             expected_output=dedent("""\
-                A comprehensive set of test cases that thoroughly validate the functionality of the software code written.
+                A comprehensive set of test cases (e.g., input/output pairs or a test script)
+                that thoroughly validate the functionality, correctness, and edge case handling
+                of the provided software code solution against the original problem requirements.
             """),
-            agent=agent
+            agent=agent,
+            context=context # Pass the context for dependency management
         )

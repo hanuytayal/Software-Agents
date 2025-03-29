@@ -1,27 +1,36 @@
 # main.py
+"""
+Initializes and runs a CrewAI crew with a developer and tester agent
+to solve a regular expression matching problem.
+
+This script defines the problem (question, example, constraints),
+creates the necessary agents (developer, tester) and tasks
+(break down problem, write solution, create test cases),
+and then kicks off the crew to execute the tasks sequentially.
+"""
+
 import logging
 from dotenv import load_dotenv
+from crewai import Crew
+from tasks import Tasks # Assuming tasks.py contains the Tasks class definition
+from agents import Agents # Assuming agents.py contains the Agents class definition
+
+# --- Setup ---
+# Load environment variables (e.g., API keys for CrewAI agents)
 load_dotenv()
 
-from crewai import Crew
-from tasks import Tasks
-from agents import Agents
-
-# Initialize logging
+# Initialize logging - DEBUG level provides detailed execution information
 logging.basicConfig(level=logging.DEBUG)
 
-tasks = Tasks()
-agents = Agents()
-
-# Create a Crew object
-# Grab Question from input
-question = """Question: Given an input string s and a pattern p, implement regular expression matching with support for '.' and '*' where:
+# --- Problem Definition ---
+# Define the core question/problem for the crew to solve
+QUESTION = """Question: Given an input string s and a pattern p, implement regular expression matching with support for '.' and '*' where:
 '.' Matches any single character.
 '*' Matches zero or more of the preceding element.
 The matching should cover the entire input string (not partial)."""
 
-# Grab Example from input
-example = """Example 1:
+# Provide examples to clarify the expected behavior
+EXAMPLE = """Example 1:
 Input: s = "aa", p = "a"
 Output: false
 Explanation: "a" does not match the entire string "aa".
@@ -34,42 +43,82 @@ Input: s = "ab", p = ".*"
 Output: true
 Explanation: ".*" means "zero or more (*) of any character (.)"."""
 
-# Grab Constraints from input
-constraints = """Constraints:
+# Specify the constraints for the input strings
+CONSTRAINTS = """Constraints:
 1 <= s.length <= 20
 1 <= p.length <= 20
 s contains only lowercase English letters.
 p contains only lowercase English letters, '.', and '*'.
 It is guaranteed for each appearance of the character '*', there will be a previous valid character to match."""
 
-# Create Agents
-developer = agents.developer()
-tester = agents.tester()
+# --- Agent and Task Initialization ---
+logging.debug("Initializing agents and tasks...")
+try:
+    tasks_manager = Tasks()
+    agents_manager = Agents()
 
-# Assign tasks to agents
-logging.debug("Assigning tasks to developer")
-break_down_task = tasks.break_down_task(developer, question, example, constraints)
-logging.debug("Developer task: Break down the problem")
+    # Create Agents
+    developer = agents_manager.developer()
+    tester = agents_manager.tester()
+    logging.debug("Agents created successfully.")
 
-write_answer_for_tasks = tasks.write_answer_for_tasks(developer, break_down_task)
-logging.debug("Developer task: Write answer for tasks")
+    # Define Tasks for the agents
+    # Task 1: Developer breaks down the problem based on the definition
+    break_down_task = tasks_manager.break_down_task(
+        agent=developer,
+        question=QUESTION,
+        example=EXAMPLE,
+        constraints=CONSTRAINTS
+    )
+    logging.debug("Task created: break_down_task")
 
-logging.debug("Assigning tasks to tester")
-test_cases = tasks.test_cases(tester, write_answer_for_tasks)
-logging.debug("Tester task: Create test cases")
+    # Task 2: Developer writes the solution based on the breakdown
+    # This task likely depends on the output of break_down_task
+    write_answer_for_tasks = tasks_manager.write_answer_for_tasks(
+        agent=developer,
+        context=break_down_task # Pass the previous task as context
+    )
+    logging.debug("Task created: write_answer_for_tasks")
 
-# Initialize the Crew with agents and tasks
+    # Task 3: Tester creates test cases based on the developer's answer
+    # This task likely depends on the output of write_answer_for_tasks
+    test_cases = tasks_manager.test_cases(
+        agent=tester,
+        context=write_answer_for_tasks # Pass the previous task as context
+    )
+    logging.debug("Task created: test_cases")
+
+except Exception as e:
+    logging.error(f"Error during agent or task initialization: {e}")
+    # Optionally exit or handle the error appropriately
+    exit(1)
+
+
+# --- Crew Execution ---
+logging.debug("Initializing the Crew...")
+# Initialize the Crew with the defined agents and the sequence of tasks
 crew = Crew(
     agents=[developer, tester],
-    tasks=[break_down_task,
-           write_answer_for_tasks,
-           test_cases]
+    tasks=[
+        break_down_task,
+        write_answer_for_tasks,
+        test_cases
+        ],
+    verbose=2 # Verbose level 2 provides detailed logs of agent actions and tool usage
 )
 
-# Start the crew and run the tasks
-logging.debug("Starting the crew")
-result = crew.kickoff()
+# Start the crew's task execution
+logging.debug("Starting the crew kickoff...")
+try:
+    result = crew.kickoff()
 
-# Print the result
-logging.debug("Result from the crew")
-print(result)
+    # Print the final result from the crew's execution
+    logging.debug("Crew execution finished. Final Result:")
+    print("\n--- Final Result ---")
+    print(result)
+    print("--------------------")
+
+except Exception as e:
+    logging.error(f"Error during crew execution: {e}")
+
+logging.debug("Script finished.")

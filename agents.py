@@ -1,77 +1,93 @@
+# agents.py
+"""
+Defines and configures CrewAI agents for software development tasks,
+using a local LLM instance (via LM Studio's OpenAI-compatible endpoint).
+"""
+
 import logging
 from crewai import Agent
-from openai import OpenAI
+# Import ChatOpenAI from langchain_openai to wrap the local LLM endpoint
+from langchain_openai import ChatOpenAI
 
-# Initialize logging
-logging.basicConfig(level=logging.DEBUG)
+# Get a logger instance for this module
+logger = logging.getLogger(__name__)
 
-# Initialize the LLaMA 3 client
-client = OpenAI(base_url="http://localhost:1234/v1", api_key="lm-studio")
-
-class IntelligentAgent(Agent):
-    def __init__(self, name, description, role, goal, backstory, developer=False, tester=False, client=None, history=None):
-        # Call the parent class (Agent) initializer
-        super().__init__(name=name, description=description, role=role, goal=goal, backstory=backstory, developer=developer, tester=tester)
-        
-        # Log the initialization of the agent
-        # logging.debug(f"Initialized {self.role}: {self.name}")
-
-    def chat(self, user_input):
-        # Log the user input
-        logging.debug(f"User input: {user_input}")
-        
-        # Append the user input to the history
-        self.history.append({"role": "user", "content": user_input})
-
-        # Call the LLaMA 3 model to get a completion
-        completion = self.client.chat.completions.create(
-            model="lmstudio-community/Meta-Llama-3-8B-Instruct-GGUF",
-            messages=self.history,
-            temperature=0.7,
-            stream=True,
-        )
-
-        # Initialize a new message from the assistant
-        new_message = {"role": "assistant", "content": ""}
-        logging.debug("Receiving response from LLaMA 3 model")
-
-        # Process the completion chunks
-        for chunk in completion:
-            if 'delta' in chunk.choices[0]:
-                if 'content' in chunk.choices[0].delta:
-                    logging.debug(f"Received chunk: {chunk.choices[0].delta.content}")
-                    new_message["content"] += chunk.choices[0].delta.content
-
-        # Append the assistant's response to the history
-        self.history.append(new_message)
-        
-        # Log the assistant's response
-        logging.debug(f"Assistant response: {new_message['content']}")
-        return new_message["content"]
+# --- Local LLM Configuration ---
+# Configure the LLM wrapper to connect to your local LM Studio instance
+# Ensure LM Studio is running and serving the model on http://localhost:1234
+try:
+    local_llm = ChatOpenAI(
+        base_url="http://localhost:1234/v1",
+        api_key="lm-studio", # Use the placeholder key for LM Studio
+        model="lmstudio-community/Meta-Llama-3-8B-Instruct-GGUF", # Specify the model being served
+        temperature=0.7
+    )
+    logger.info("Connected to local LLM via LangChain wrapper.")
+except Exception as e:
+    logger.error(f"Failed to initialize LangChain LLM wrapper: {e}")
+    # Handle error appropriately - maybe exit or use a fallback
+    local_llm = None # Set to None if connection fails
 
 class Agents:
-    def developer(self):
-        # Create and return a developer agent
-        return IntelligentAgent(
-            name="Developer",
-            description="A software developer who can write software code based on the tasks provided.",
+    """
+    A factory class for creating pre-configured CrewAI agents
+    using the defined local LLM.
+    """
+    def developer(self) -> Agent:
+        """
+        Creates and returns a 'Developer' agent configured for writing code.
+
+        Returns:
+            A CrewAI Agent object representing the developer.
+
+        Raises:
+            ValueError: If the local LLM failed to initialize.
+        """
+        if local_llm is None:
+            raise ValueError("Local LLM is not available. Cannot create agent.")
+
+        logger.debug("Creating Developer agent")
+        return Agent(
             role="Developer",
-            goal="Develop high-quality software solutions.",
-            backstory="You are an intelligent assistant. You always provide well-reasoned answers that are both correct and helpful.",
-            client=client,
-            history=[],
-            developer=True,
-            tester=False
+            goal="Develop high-quality, correct, and well-documented software code based on provided tasks and requirements.",
+            backstory=dedent("""\
+                You are a skilled software developer focused on implementing solutions
+                accurately based on requirements. You write clean, efficient, and
+                well-commented code following best practices."""),
+            allow_delegation=False, # Developer likely works independently on coding tasks
+            verbose=True,
+            llm=local_llm # Use the configured local LLM
         )
 
-    def tester(self):
-        # Create and return a tester agent
-        return IntelligentAgent(
-            name="Tester",
-            description="A software tester who can test the software code written based on the tasks provided and double-check rewritten code before it is run for testing. Then compares the results to the expected output, providing a critical analysis of the results.",
+    def tester(self) -> Agent:
+        """
+        Creates and returns a 'Tester' agent configured for testing code
+        and ensuring quality.
+
+        Returns:
+            A CrewAI Agent object representing the tester.
+
+        Raises:
+            ValueError: If the local LLM failed to initialize.
+        """
+        if local_llm is None:
+            raise ValueError("Local LLM is not available. Cannot create agent.")
+
+        logger.debug("Creating Tester agent")
+        return Agent(
             role="Tester",
-            goal="Ensure software quality and reliability through thorough testing.",
-            backstory="Has extensive experience in software testing and quality assurance.",
-            developer=False,
-            tester=True
+            goal="Ensure software quality and reliability by creating comprehensive test cases and verifying code correctness against requirements.",
+            backstory=dedent("""\
+                You are a meticulous Quality Assurance expert with extensive experience
+                in software testing. You excel at identifying edge cases, creating
+                thorough test plans, and critically analyzing code behavior against
+                expected outcomes."""),
+            allow_delegation=False, # Tester likely works independently
+            verbose=True,
+            llm=local_llm # Use the configured local LLM
         )
+
+# Helper function (optional) to make importing easier
+# You can directly instantiate Agents() in main.py as well
+# def get_agents_factory():
+#     return Agents()
