@@ -2,39 +2,38 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-An automated multi-agent system built using CrewAI that simulates a software development team to break down problems, write code, and review it. This project demonstrates the power of collaborative AI agents for tackling software development tasks.
+An automated multi-agent system built using CrewAI that simulates a software development team to solve coding problems. This project demonstrates the power of collaborative AI agents for tackling software development tasks.
 
 ## 🌟 Features
 
 * **Multi-Agent Collaboration:** Utilizes CrewAI framework for seamless interaction between specialized agents
-* **Automated Task Breakdown:** Manager agent intelligently decomposes complex problems
-* **Automated Code Generation:** Engineer agent writes code based on defined tasks
-* **Automated Code Review/Testing:** Reviewer agent provides feedback on the generated code
-* **Local LLM Integration:** Designed to work with local LLMs via an OpenAI-compatible endpoint (e.g., LM Studio)
+* **Automated Problem Analysis:** Research Analyst agent thoroughly analyzes problems
+* **Automated Code Generation:** Python Developer agent writes efficient solutions
+* **Automated Testing:** Test Engineer agent creates and runs comprehensive test cases
 * **Comprehensive Logging:** Detailed execution logs for debugging and monitoring
 * **Environment Variable Management:** Secure handling of configuration and API keys
+* **Problem Management:** Organized structure for managing unsolved and solved problems
 
 ## 🛠️ Tech Stack
 
 * **Framework:** CrewAI
 * **Language:** Python 3.8+
 * **LLM Integration:** LangChain with ChatOpenAI wrapper
-* **Local LLM Server:** LM Studio (or any OpenAI-compatible endpoint)
-* **Core LLM:** Meta-Llama-3-8B-Instruct-GGUF (via LM Studio)
 * **Environment Management:** python-dotenv
+* **Search Integration:** DuckDuckGo for web research
 
 ## 📋 Prerequisites
 
 Before you begin, ensure you have:
 * Python 3.8 or higher installed
-* Access to a running LLM (e.g., LM Studio serving a compatible model)
+* OpenAI API key (for GPT-4 access)
 * Git (optional, for cloning the repository)
 
 ## 🚀 Installation
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/your-username/Software-Agents.git
+   git clone https://github.com/hanuytayal/Software-Agents.git
    cd Software-Agents
    ```
 
@@ -61,35 +60,28 @@ Before you begin, ensure you have:
    ```
    Edit the `.env` file with your configuration:
    ```
-   # For LM Studio, the API key is typically a placeholder
-   OPENAI_API_KEY=lm-studio
-   OPENAI_BASE_URL=http://localhost:1234/v1
+   OPENAI_API_KEY=your_api_key_here
+   OPENAI_MODEL=gpt-4-turbo-preview
+   OPENAI_TEMPERATURE=0.7
    ```
 
 ## 💻 Usage
 
-1. **Start your LLM Server:**
-   - Launch LM Studio
-   - Load the Meta-Llama-3-8B-Instruct-GGUF model
-   - Start the server on port 1234
+1. **Add Problems:**
+   Place your coding problems in the `problems/unsolved` directory as text files.
 
-2. **Define the Problem:**
-   Modify the following variables in `main.py`:
-   ```python
-   QUESTION = "Your problem description"
-   EXAMPLE = "Example inputs and outputs"
-   CONSTRAINTS = "Problem constraints"
-   ```
-
-3. **Run the Script:**
+2. **Run the Script:**
    ```bash
    python main.py
    ```
 
-4. **Review the Output:**
-   - The script will log interactions between agents
-   - Final results will be displayed in the console
-   - Check the logs for detailed execution information
+3. **Review the Results:**
+   - Solutions will be saved in `problems/solved` directory
+   - Each solution includes:
+     - Original problem description
+     - Generated code solution
+     - Test cases and results
+   - Check `problem_solver.log` for detailed execution information
 
 ## 🔍 Project Structure
 
@@ -98,6 +90,10 @@ Software-Agents/
 ├── main.py           # Main script orchestrating the agents
 ├── agents.py         # Agent definitions and configurations
 ├── tasks.py          # Task definitions for the agents
+├── custom_task.py    # Custom task implementation
+├── problems/         # Problem management
+│   ├── unsolved/    # Problems to be solved
+│   └── solved/      # Solutions and results
 ├── requirements.txt  # Project dependencies
 ├── .env.example     # Example environment configuration
 └── README.md        # This file
@@ -105,22 +101,28 @@ Software-Agents/
 
 ## 🤖 Agent Roles
 
-1. **Developer Agent:**
-   - Analyzes and breaks down complex problems
-   - Writes clean, efficient, and well-documented code
-   - Follows best practices and coding standards
+1. **Research Analyst:**
+   - Analyzes problem requirements and constraints
+   - Identifies edge cases and potential challenges
+   - Provides comprehensive problem breakdown
 
-2. **Tester Agent:**
+2. **Python Developer:**
+   - Writes clean, efficient, and well-documented code
+   - Implements solutions following best practices
+   - Handles error cases appropriately
+
+3. **Test Engineer:**
    - Creates comprehensive test cases
    - Validates code against requirements
-   - Identifies edge cases and potential issues
+   - Tests edge cases and error conditions
+   - Provides detailed test results
 
 ## 🔄 Workflow
 
-1. The Developer agent analyzes the problem and breaks it down into tasks
-2. Based on the breakdown, the Developer writes the solution
-3. The Tester agent reviews the code and creates test cases
-4. The process is logged and results are presented
+1. The Research Analyst analyzes the problem and provides a detailed breakdown
+2. The Python Developer writes the solution based on the analysis
+3. The Test Engineer creates and runs test cases
+4. Results are saved with the original problem, solution, and test outcomes
 
 ## 🤝 Contributing
 
