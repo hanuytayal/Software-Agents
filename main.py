@@ -30,6 +30,7 @@ from crewai import Agent, Task, Crew, Process
 from crewai.tools import BaseTool
 from langchain_community.tools.ddg_search import DuckDuckGoSearchRun
 from langchain_openai import ChatOpenAI
+from tasks import Tasks  # Import our local Tasks class
 
 # --- Logging Configuration ---
 def setup_logging() -> None:
@@ -180,6 +181,11 @@ class ProblemProcessor:
                 problem_definition = f.read()
             logging.debug(f"Problem definition loaded, length: {len(problem_definition)}")
             
+            # Extract problem components
+            question = extract_question(problem_definition)
+            examples = extract_examples(problem_definition)
+            constraints = extract_constraints(problem_definition)
+            
             # Create agents
             logging.debug("Creating agents...")
             researcher = Agent(
@@ -207,58 +213,11 @@ class ProblemProcessor:
             )
             logging.debug("Tester agent created")
             
-            # Create tasks with detailed logging
-            logging.debug("Creating tasks...")
-            research_task = Task(
-                description=f"Research and analyze this problem:\n\n{problem_definition}\n\nFocus on:\n1. Problem requirements and constraints\n2. Edge cases to consider\n3. Common pitfalls to avoid",
-                agent=researcher,
-                expected_output="Expected research output here"
-            )
-            
-            coding_task = Task(
-                description="""Write Python code to solve the problem. Include:
-1. Clear function/class definition
-2. Comprehensive docstring with examples
-3. Efficient implementation
-4. Error handling where appropriate
-5. Comments explaining complex logic""",
-                agent=coder,
-                expected_output="""A complete Python implementation that:
-1. Correctly solves the given problem
-2. Includes proper documentation and comments
-3. Handles edge cases and errors appropriately
-4. Follows Python best practices and coding standards"""
-            )
-            
-            testing_task = Task(
-                description="""Create comprehensive test cases for the solution. Include:
-1. Basic test cases from the problem description
-2. Edge cases and boundary conditions
-3. Error cases and invalid inputs
-4. Performance test cases for large inputs
-5. Format each test case as:
-   ```python
-   test_cases = [
-       (input1, input2, ..., expected_output1),
-       (input3, input4, ..., expected_output2),
-       ...
-   ]
-   ```
-   Or as print statements with comments:
-   ```python
-   # Input: [2, 7, 11, 15], target = 9
-   # Expected Output: [0, 1]
-   print(twoSum([2, 7, 11, 15], 9))
-   ```""",
-                agent=tester,
-                expected_output="""A comprehensive set of test cases that:
-1. Validates the solution against the problem requirements
-2. Covers all edge cases and boundary conditions
-3. Tests error handling and invalid inputs
-4. Includes performance tests for large inputs
-5. Is formatted in a clear, executable Python format"""
-            )
-            logging.debug("All tasks created")
+            # Create tasks using the Tasks class
+            tasks = Tasks()
+            research_task = tasks.break_down_task(researcher, question, examples, constraints)
+            coding_task = tasks.write_answer_for_tasks(coder, [research_task])
+            testing_task = tasks.test_cases(tester, [coding_task])
             
             # Create and run crew
             logging.info("Creating crew and starting execution...")
@@ -271,7 +230,6 @@ class ProblemProcessor:
             logging.info("Starting crew execution...")
             result = crew.kickoff()
             logging.info("Crew execution completed")
-            logging.debug(f"Raw result length: {len(result.raw)}")
             
             # Extract solution and test cases
             logging.debug("Extracting solution from result...")
@@ -288,220 +246,89 @@ class ProblemProcessor:
             # Run tests
             logging.info("Running tests...")
             test_results = run_tests(solution, test_cases)
-            logging.debug(f"Test results length: {len(test_results)}")
             
             # Save results
-            logging.info("Saving results...")
-            result_file = self.results_manager.save_to_file(problem_file, solution, test_cases, test_results)
-            logging.info(f"Results saved to: {result_file}")
+            results_file = self.results_manager.save_to_file(
+                problem_file,
+                solution,
+                test_cases,
+                test_results
+            )
             
-            return result_file
+            return results_file
             
         except Exception as e:
-            logging.error(f"Error processing {problem_file.name}: {str(e)}", exc_info=True)
+            logging.error(f"Error processing problem {problem_file.name}: {str(e)}")
             return None
 
 # --- Helper Functions ---
+def extract_question(problem_definition: str) -> str:
+    """Extract the main question from the problem definition."""
+    question_match = re.search(r'=== Problem ===\n(.*?)(?=\n\n|$)', problem_definition, re.DOTALL)
+    if question_match:
+        return question_match.group(1).strip()
+    return ""
+
+def extract_examples(problem_definition: str) -> str:
+    """Extract examples from the problem definition."""
+    examples_match = re.search(r'Example:?\n(.*?)(?=\n\n|Constraints:|$)', problem_definition, re.DOTALL)
+    if examples_match:
+        return examples_match.group(1).strip()
+    return ""
+
+def extract_constraints(problem_definition: str) -> str:
+    """Extract constraints from the problem definition."""
+    constraints_match = re.search(r'Constraints:?\n(.*?)(?=\n\n|$)', problem_definition, re.DOTALL)
+    if constraints_match:
+        return constraints_match.group(1).strip()
+    return ""
+
 def extract_solution(result: str) -> str:
-    """Extract solution code from the result string."""
-    try:
-        logging.debug("Attempting to extract solution code...")
-        solution_match = re.search(r'```(?:python)?\n(.*?)\n```', result, re.DOTALL)
-        if solution_match:
-            solution = solution_match.group(1).strip()
-            logging.debug(f"Solution extracted, length: {len(solution)}")
-            return solution
-        logging.warning("No solution code block found in result")
-        return ""
-    except Exception as e:
-        logging.error(f"Error extracting solution: {str(e)}", exc_info=True)
-        return ""
+    """Extract the solution code from the result."""
+    solution_match = re.search(r'=== Solution ===\n(.*?)(?=\n\n|=== Test Cases ===|$)', result, re.DOTALL)
+    if solution_match:
+        return solution_match.group(1).strip()
+    return ""
 
-def extract_test_cases(test_cases: str) -> List[Dict[str, Any]]:
-    """Extract test cases from the test cases output."""
-    test_list = []
-    logging.debug("Starting test case extraction...")
+def extract_test_cases(result: str) -> List[Dict[str, Any]]:
+    """Extract test cases from the result."""
+    test_cases = []
+    test_case_pattern = r'Test Case \d+:\nInput: (.*?)\nExpected: (.*?)(?=\n\n|$)'
     
-    try:
-        # Try to find test cases in code blocks first
-        test_blocks = re.findall(r'```(?:python)?\n(.*?)\n```', test_cases, re.DOTALL)
-        logging.debug(f"Found {len(test_blocks)} code blocks")
-        
-        for block in test_blocks:
-            # Look for test case definitions
-            test_cases_match = re.search(r'test_cases\s*=\s*\[(.*?)\]', block, re.DOTALL)
-            if test_cases_match:
-                test_cases_str = test_cases_match.group(1)
-                logging.debug(f"Found test_cases list: {test_cases_str[:100]}...")
-                
-                for test_case in test_cases_str.split(','):
-                    try:
-                        test_case = test_case.strip()
-                        if not test_case:
-                            continue
-                        test_case = test_case.strip('()')
-                        parts = [p.strip() for p in test_case.split(',')]
-                        if len(parts) >= 2:
-                            input_str = f"({', '.join(parts[:-1])})"
-                            expected = parts[-1].strip()
-                            test_list.append({
-                                'input': input_str,
-                                'expected': expected
-                            })
-                            logging.debug(f"Added test case - Input: {input_str}, Expected: {expected}")
-                    except Exception as e:
-                        logging.error(f"Error parsing test case '{test_case}': {str(e)}")
-        
-        # If no test cases found in code blocks, try to find print statements
-        if not test_list:
-            logging.debug("No test cases found in code blocks, trying print statements...")
-            print_statements = re.findall(r'print\((.*?)\)', test_cases)
-            for stmt in print_statements:
-                try:
-                    comment_match = re.search(r'#\s*Input:\s*(.*?)\n.*?#\s*Expected Output:\s*(.*?)(?:\n|$)', stmt, re.DOTALL)
-                    if comment_match:
-                        input_str = comment_match.group(1).strip()
-                        expected = comment_match.group(2).strip()
-                        test_list.append({
-                            'input': input_str,
-                            'expected': expected
-                        })
-                        logging.debug(f"Added test case from print - Input: {input_str}, Expected: {expected}")
-                except Exception as e:
-                    logging.error(f"Error parsing print statement '{stmt}': {str(e)}")
-        
-        # If still no test cases found, try to find assert statements
-        if not test_list:
-            logging.debug("No test cases found in print statements, trying assert statements...")
-            assert_statements = re.findall(r'assert\s+(\w+)\s*\((.*?)\)\s*==\s*(.*?)(?:\s*,\s*".*?")?$', test_cases, re.MULTILINE)
-            for func_name, args, expected in assert_statements:
-                try:
-                    input_str = args.strip() if args.strip().startswith('(') and args.strip().endswith(')') else f"({args.strip()})"
-                    test_list.append({
-                        'input': input_str,
-                        'expected': expected.strip()
-                    })
-                    logging.debug(f"Added test case from assert - Input: {input_str}, Expected: {expected.strip()}")
-                except Exception as e:
-                    logging.error(f"Error parsing assert statement - func: {func_name}, args: {args}: {str(e)}")
-        
-        logging.info(f"Total test cases extracted: {len(test_list)}")
-        return test_list
-        
-    except Exception as e:
-        logging.error(f"Error extracting test cases: {str(e)}", exc_info=True)
-        return []
-
-def run_tests(solution_code: str, test_cases: List[Dict[str, Any]]) -> str:
-    """Run the test cases on the solution code."""
-    logging.info("Starting test execution...")
-    
-    if not solution_code or not test_cases:
-        logging.warning("No solution code or test cases provided")
-        return "No solution code or test cases found."
-    
-    try:
-        # Create a temporary module to run the code
-        module_name = f"test_module_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-        logging.debug(f"Creating temporary module: {module_name}")
-        test_module = type(sys)(module_name)
-        test_module.__dict__.update({
-            'solution': None,
-            'test_cases': test_cases
+    for match in re.finditer(test_case_pattern, result, re.DOTALL):
+        test_cases.append({
+            'input': match.group(1).strip(),
+            'expected': match.group(2).strip()
         })
-        
-        # Execute the solution code
-        logging.debug("Executing solution code...")
-        exec(solution_code, test_module.__dict__)
-        
-        # Get the solution function or class
-        solution_func = None
-        solution_class = None
-        for name, obj in test_module.__dict__.items():
-            if name == 'Solution':
-                solution_class = obj
-                logging.debug("Found Solution class")
-                break
-            elif callable(obj) and name != 'test_cases':
-                solution_func = obj
-                logging.debug(f"Found solution function: {name}")
-                break
-        
-        if not (solution_func or solution_class):
-            logging.error("No solution function or class found")
-            return "No solution function or class found in the code."
-        
-        # Create instance if it's a class
-        if solution_class:
-            logging.debug("Creating Solution class instance...")
-            solution_instance = solution_class()
-            # Try to find the main method
-            for method_name in ['isMatch', 'twoSum', 'reverseList', 'search', 'sortArray']:
-                if hasattr(solution_instance, method_name):
-                    solution_func = getattr(solution_instance, method_name)
-                    logging.debug(f"Found method: {method_name}")
-                    break
-            if not solution_func:
-                logging.error("No suitable method found in Solution class")
-                return "No suitable method found in Solution class."
-        else:
-            logging.info(f"Using standalone function: {solution_func.__name__}")
-        
-        # Run tests
-        results = []
-        passed_count = 0
-        total_count = len(test_cases)
-        
-        logging.info(f"Running {total_count} test cases...")
-        for i, test in enumerate(test_cases, 1):
-            try:
-                input_str = test['input'].strip()
-                expected_str = test['expected'].strip()
-                logging.debug(f"Running test case {i}/{total_count} - Input: {input_str}")
-                
-                # Handle tuple inputs
-                if input_str.startswith('(') and input_str.endswith(')'):
-                    inner = input_str[1:-1].strip()
-                    args = [eval(arg.strip()) for arg in inner.split(',')] if ',' in inner else [eval(inner)]
-                else:
-                    args = [eval(input_str)]
-                
-                # Run solution
-                actual = solution_func(*args)
-                expected = eval(expected_str)
-                passed = actual == expected
-                
-                if passed:
-                    passed_count += 1
-                    logging.debug(f"Test case {i} passed")
-                else:
-                    logging.warning(f"Test case {i} failed - Expected: {expected}, Got: {actual}")
-                
-                results.append(f"Test Case {i}:")
-                results.append(f"Input: {input_str}")
-                results.append(f"Expected: {expected_str}")
-                results.append(f"Actual: {actual}")
-                results.append(f"Status: {'PASSED' if passed else 'FAILED'}")
-                results.append("")
-                
-            except Exception as e:
-                logging.error(f"Error running test case {i}: {str(e)}", exc_info=True)
-                results.append(f"Test Case {i} Error: {str(e)}")
-                results.append(f"Input: {test['input']}")
-                results.append(f"Expected: {test['expected']}")
-                results.append("")
-        
-        # Add summary
-        summary = f"\nTest Summary: {passed_count}/{total_count} tests passed"
-        logging.info(summary)
-        results.append(summary)
-        
-        return "\n".join(results)
-        
-    except Exception as e:
-        error_msg = f"Error running tests: {str(e)}"
-        logging.error(error_msg, exc_info=True)
-        return error_msg
+    
+    return test_cases
+
+def run_tests(solution: str, test_cases: List[Dict[str, Any]]) -> str:
+    """Run the test cases and return the results."""
+    # Create a temporary Python file with the solution and test cases
+    test_file = "temp_test.py"
+    with open(test_file, "w") as f:
+        f.write(solution + "\n\n")
+        f.write("def run_test_cases():\n")
+        for i, test_case in enumerate(test_cases, 1):
+            f.write(f"    # Test Case {i}\n")
+            f.write(f"    try:\n")
+            f.write(f"        result = {test_case['input']}\n")
+            f.write(f"        expected = {test_case['expected']}\n")
+            f.write(f"        assert result == expected, f'Test Case {i} Failed: Expected {expected}, got {result}'\n")
+            f.write(f"        print(f'Test Case {i} passed')\n")
+            f.write(f"    except Exception as e:\n")
+            f.write(f"        print(f'Test Case {i} failed: {str(e)}')\n")
+    
+    # Run the test file
+    import subprocess
+    try:
+        result = subprocess.run([sys.executable, test_file], capture_output=True, text=True)
+        return result.stdout
+    finally:
+        # Clean up the temporary file
+        if os.path.exists(test_file):
+            os.remove(test_file)
 
 # --- Main Execution ---
 def main() -> None:

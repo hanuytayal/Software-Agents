@@ -1,0 +1,33 @@
+=== Problem ===
+Implement a stack data structure with the following operations:
+1. push(x) - Push element x onto stack
+2. pop() - Remove the element on top of the stack and return it
+3. top() - Get the top element without removing it
+4. getMin() - Retrieve the minimum element in the stack
+
+All operations must run in O(1) time complexity.
+
+Example:
+Input: 
+["MinStack","push","push","push","getMin","pop","top","getMin"]
+[[],[-2],[0],[-3],[],[],[],[]]
+
+Output: 
+[null,null,null,null,-3,null,0,-2]
+
+Explanation:
+MinStack minStack = new MinStack();
+minStack.push(-2);
+minStack.push(0);
+minStack.push(-3);
+minStack.getMin(); // return -3
+minStack.pop();
+minStack.top();    // return 0
+minStack.getMin(); // return -2
+
+Constraints:
+-231 <= x <= 231 - 1
+At most 3 * 104 calls will be made to push, pop, top, and getMin
+pop, top, and getMin operations will always be called on non-empty stacks
+
+Follow up: Can you implement the stack without using any built-in stack data structure? 

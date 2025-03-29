@@ -13,8 +13,7 @@ Software-Agents/
 ├── LICENSE          # MIT License
 ├── README.md        # Project documentation
 ├── INDEX.md         # This file (codebase index)
-├── questions.txt    # Problem definitions
-└── answers.txt      # Generated solutions
+└── questions.txt    # Problem definitions
 ```
 
 ## 📄 File Descriptions
@@ -100,10 +99,6 @@ Software-Agents/
 - **Purpose**: Stores problem definitions and examples
 - **Format**: Text file with problem descriptions, examples, and constraints
 
-#### `answers.txt`
-- **Purpose**: Stores generated solutions
-- **Format**: Text file with solutions and explanations
-
 ## 🔄 Code Flow
 
 1. **Initialization**:
@@ -121,7 +116,7 @@ Software-Agents/
 
 4. **Output**:
    - Results are logged and displayed
-   - Solutions can be saved to `answers.txt`
+   - Solutions are saved to timestamped result files
 
 ## 🔧 Key Functions
 
