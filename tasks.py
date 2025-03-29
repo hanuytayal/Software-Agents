@@ -6,8 +6,9 @@ generating a solution, and creating test cases.
 
 import logging
 from textwrap import dedent
-from crewai import Task, Agent
-from typing import List # Import List for type hinting context
+from crewai import Agent
+from typing import List
+from custom_task import CustomTask
 
 # Get a logger instance for this module
 logger = logging.getLogger(__name__)
@@ -17,7 +18,7 @@ class Tasks:
     A container class for methods that generate specific CrewAI Task objects
     for solving coding problems.
     """
-    def break_down_task(self, agent: Agent, question: str, example: str, constraints: str) -> Task:
+    def break_down_task(self, agent: Agent, question: str, example: str, constraints: str) -> CustomTask:
         """
         Creates a task for an agent to analyze and break down a given LeetCode problem
         into actionable development steps.
@@ -29,10 +30,10 @@ class Tasks:
             constraints (str): Constraints on the input/output.
 
         Returns:
-            A CrewAI Task object for breaking down the problem.
+            A CustomTask object for breaking down the problem.
         """
         logger.debug(f"Creating task 'break_down_task' for agent {agent.role}")
-        return Task(
+        return CustomTask(
             description=dedent(f"""\
                 Analyze the provided LeetCode problem:
                 Question: "{question}"
@@ -51,51 +52,50 @@ class Tasks:
             agent=agent
         )
 
-    def write_answer_for_tasks(self, agent: Agent, context: List[Task]) -> Task:
+    def write_answer_for_tasks(self, agent: Agent, context: List[CustomTask]) -> CustomTask:
         """
         Creates a task for an agent to write the code solution based on
         the previously defined development tasks.
 
         Args:
             agent: The CrewAI agent assigned to this task.
-            context (List[Task]): A list of prerequisite tasks, expected to include
+            context (List[CustomTask]): A list of prerequisite tasks, expected to include
                                    the output of 'break_down_task'.
 
         Returns:
-            A CrewAI Task object for writing the code solution.
+            A CustomTask object for writing the code solution.
         """
         logger.debug(f"Creating task 'write_answer_for_tasks' for agent {agent.role}")
-        return Task(
+        return CustomTask(
             description=dedent(f"""\
                 Based on the provided breakdown of software development tasks,
                 write the actual software code that solves the original LeetCode problem.
                 Ensure the code is well-commented, follows best practices, and correctly
                 implements the logic required by the problem description and examples.
             """),
-            # Corrected expected_output to align with writing code
             expected_output=dedent("""\
                 A complete, correct, and well-documented code solution (e.g., in Python)
                 that solves the specified LeetCode problem, adhering to the logic
                 derived from the problem breakdown. The code should be ready for testing.
             """),
             agent=agent,
-            context=context # Pass the context for dependency management
+            context=context
         )
 
-    def test_cases(self, agent: Agent, context: List[Task]) -> Task:
+    def test_cases(self, agent: Agent, context: List[CustomTask]) -> CustomTask:
         """
         Creates a task for an agent to generate test cases for the developed code solution.
 
         Args:
             agent: The CrewAI agent assigned to this task.
-            context (List[Task]): A list of prerequisite tasks, expected to include
+            context (List[CustomTask]): A list of prerequisite tasks, expected to include
                                    the output of 'write_answer_for_tasks'.
 
         Returns:
-            A CrewAI Task object for generating test cases.
+            A CustomTask object for generating test cases.
         """
         logger.debug(f"Creating task 'test_cases' for agent {agent.role}")
-        return Task(
+        return CustomTask(
             description=dedent(f"""\
                 Based on the original LeetCode problem description, examples, constraints,
                 and the provided code solution, create a comprehensive set of test cases.
@@ -108,5 +108,5 @@ class Tasks:
                 of the provided software code solution against the original problem requirements.
             """),
             agent=agent,
-            context=context # Pass the context for dependency management
+            context=context
         )
